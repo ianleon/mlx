@@ -49,6 +49,16 @@ class MLX_API CommandEncoder {
   void set_output_array(array& a, int idx, int64_t offset = 0);
   void register_output_array(const array& a);
 
+  // Fast fence waits start after the last fast fence update in this queue.
+  void record_fence_update(const MTL::Buffer* buf) {
+    last_fence_update_ = buf;
+  }
+  void wait_for_fence_update() {
+    if (last_fence_update_) {
+      all_inputs_.insert(last_fence_update_);
+    }
+  }
+
   void add_temporary(array arr);
   void add_temporaries(std::vector<array> arrays);
 
@@ -138,6 +148,7 @@ class MLX_API CommandEncoder {
   std::unordered_set<MTL::Resource*> concurrent_outputs_;
   std::unordered_set<const void*> all_inputs_;
   std::unordered_set<const void*> all_outputs_;
+  const void* last_fence_update_{nullptr};
 
   // A map of prior command encoder outputs to their corresponding fence.
   std::unordered_map<const void*, NS::SharedPtr<MTL::Fence>> prev_ce_outputs_;

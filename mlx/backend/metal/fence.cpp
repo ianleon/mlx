@@ -66,6 +66,10 @@ void Fence::wait(Stream stream, const array& x, uint32_t value) {
   auto& d = metal::device(stream.device);
   auto& compute_encoder = metal::get_command_encoder(stream);
 
+  // A spin in a later command buffer can block an earlier fence update that
+  // the CPU needs before it can release the spin.
+  compute_encoder.wait_for_fence_update();
+
   // Register outputs to ensure that no kernels which depends on the
   // output starts before this one is done
   compute_encoder.register_output_array(x);
@@ -129,6 +133,7 @@ uint32_t Fence::update(Stream stream, const array& x, bool cross_device) {
   compute_encoder.set_buffer(buf, 0);
   compute_encoder.set_bytes(f.count, 1);
   compute_encoder.dispatch_threads(kernel_dims, kernel_dims);
+  compute_encoder.record_fence_update(buf);
 
   compute_encoder.get_command_buffer()->addCompletedHandler(
       [fence_ = fence_](MTL::CommandBuffer* cbuf) {});
